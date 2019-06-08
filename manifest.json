@@ -1,0 +1,11 @@
+{
+  "name": "TagWeight",
+  "version": "1.0",
+  "description": "Displays a network graph of the resources loaded for various tags on a page",
+  "manifest_version": 2,
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "devtools_page": "devtools.html"
+}
