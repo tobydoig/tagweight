@@ -82,12 +82,13 @@ chrome.runtime.onConnect.addListener(function onConnect(port) {
 
 chrome.webRequest.onBeforeRequest.addListener(function onBeforeRequest(details) {
     console.log('[background] onBeforeRequest from ' + details.tabId);
+    
     var record = tabIdToDevtools[details.tabId];
     
     if (record) {
       if (record.panelPort) {
         record.buffer.length = 0;
-        record.panelPort.postMessage('reset');
+        record.panelPort.postMessage({method: 'reset', params: details.url});
       }
     }
     
@@ -100,12 +101,10 @@ chrome.webRequest.onBeforeRequest.addListener(function onBeforeRequest(details) 
 chrome.debugger.onEvent.addListener(function onEvent(source, method, params) {
   if (!devtoolsOpen) return;
   
+  console.log('[background] onEvent ' + JSON.stringify(method) + ' = ' + JSON.stringify(params));
+  
   var record = tabIdToDevtools[source.tabId];
   if (!record) return;
-  
-  //if (method === 'Network.requestWillBeSent') {
-    console.log('[background] onEvent ' + JSON.stringify(method) + ' = ' + JSON.stringify(params));
-  //}
   
   if (record.panelPort) {
     record.panelPort.postMessage({method: method, params: params});
