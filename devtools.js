@@ -10,7 +10,7 @@ backgroundPageConnection.onMessage.addListener(function onMessage(message) {
   console.log('[devtools] from backgroundPageConnection says ' + JSON.stringify(message));
 });
 
-chrome.runtime.sendMessage({
+backgroundPageConnection.postMessage({
   event: 'devtools-tab-id',
   tabId: chrome.devtools.inspectedWindow.tabId
 });
