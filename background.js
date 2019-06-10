@@ -54,7 +54,7 @@ chrome.debugger.onEvent.addListener(function onEvent(source, method, params) {
   
   if (source.tabId !== tagWeightDetails.taggedTabId) return;
   
-  tagWeightDetails.tagPort.postMessage({method: method, params: params});
+  tagWeightDetails.tagPort.postMessage({event: 'network', method: method, params: params});
 });
 
 chrome.runtime.onConnect.addListener(function onConnect(port) {
@@ -122,21 +122,3 @@ window.addEventListener('message', function onMessage(event) {
     }
   }
 });
-
-false && chrome.webRequest.onBeforeRequest.addListener(function onBeforeRequest(details) {
-    console.log('[background] onBeforeRequest from ' + details.tabId);
-    
-    var record = tabIdToDevtools[details.tabId];
-    
-    if (record) {
-      if (record.panelPort) {
-        record.buffer.length = 0;
-        record.panelPort.postMessage({method: 'reset', params: details.url});
-      }
-    }
-    
-    return {cancel: false};
-  },
-  {urls: ["<all_urls>"], types:["main_frame"]},
-  []
-);

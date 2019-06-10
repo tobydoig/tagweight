@@ -17,8 +17,6 @@
   },
   "permissions": [
     "tabs",
-    "debugger",
-    "webRequest",
-    "*://*/"
+    "debugger"
   ]
 }

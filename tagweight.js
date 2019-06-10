@@ -5,14 +5,37 @@ console.log('tagweight.js loaded');
 window.addEventListener('load', () => {
   
   var extension = chrome.runtime.connect({name: "tagweight-client"});
-  var frameId = 0;
+  var topFrameId = 0;
+  var requestIds = {};
+  
+  function newPageRequest(params) {
+    
+  }
+  
+  function handleNetworkEvent(method, params) {
+    switch (method) {
+      case 'Network.requestWillBeSent':
+        if (params.type === 'Document' && params.frameId === topFrameId) {
+          newPageRequest(params);
+        } else {
+        }
+        break;
+      
+      default:
+        break;
+    }
+  }
   
   extension.onMessage.addListener(function onMessage(msg) {
     console.log('[tagweight] onMessage : ' + JSON.stringify(msg));
     
     switch (msg.event) {
+      case 'network':
+        handleNetworkEvent(msg.method, msg.params);
+        break;
+      
       case 'frame-id':
-        frameId = msg.frameId;
+        topFrameId = msg.frameId;
         break;
       
       default:
