@@ -1,86 +1,129 @@
 'use strict';
 
-console.log('background.js loaded');
+const EXTENSION_URL = 'chrome-extension://' + chrome.runtime.id;
 
-var devtoolsOpen = 0;
-var tabIdToDevtools = {};
+console.log('background.js loaded with EXTENSION_URL=' + EXTENSION_URL);
+
+var tagWeightDetails = {
+  tagWindowId : 0,
+  tagPort: null,
+  taggedTabId : 0,
+  attached : false,
+  frameId : 0
+};
+
+var debuggedTabId = 0;
+
+function startTagWeighting(id) {
+  console.log('[background] startTagWeighting for ' + id);
+  
+  if (tagWeightDetails.taggedTabId) {
+    if (tagWeightDetails.taggedTabId === id) return;
+
+    stopTagWeighting();
+  }
+  
+  tagWeightDetails.taggedTabId = id;
+  
+  chrome.windows.create({ url: chrome.runtime.getURL('tagweight.html') }, function create(window) {
+    console.log('[background] tagweight opened window ' + window.id);
+    tagWeightDetails.tagWindowId = window.id;
+  });
+}
+
+function stopTagWeighting() {
+  console.log('[background] stopTagWeighting');
+  
+  if (tagWeightDetails.attached) {
+    tagWeightDetails.attached = false;
+    chrome.debugger.detach({tabId : tagWeightDetails.taggedTabId});
+  }
+  
+  if (tagWeightDetails.tagPort) {
+    tagWeightDetails.tagPort.disconnect();
+    tagWeightDetails.tagPort = null;
+  }
+  
+  tagWeightDetails.taggedTabId = 0;
+  tagWeightDetails.tagWindowId = 0;
+  tagWeightDetails.frameId = 0;
+}
+
+chrome.debugger.onEvent.addListener(function onEvent(source, method, params) {
+  console.log('[background] onEvent ' + JSON.stringify(method) + ' = ' + JSON.stringify(params));
+  
+  if (source.tabId !== tagWeightDetails.taggedTabId) return;
+  
+  tagWeightDetails.tagPort.postMessage({method: method, params: params});
+});
 
 chrome.runtime.onConnect.addListener(function onConnect(port) {
   console.log('[background] onConnect from ' + port.name);
   
-  var record;
-  
-  if (port.name === 'devtools-page') {
-    record = {
-      tabId : 0,
-      buffer : [],
-      toolsPort : port,
-      panelPort : null,
-      debugging : false
-    };
+  if (port.name === 'tagweight-client') {
+    tagWeightDetails.tagPort = port;
     
-    ++devtoolsOpen;
-  }
-  
-  var listener = function(message, sender, sendResponse) {
-    console.log('[background] ' + sender + ' says ' + JSON.stringify(message));
+    port.onDisconnect.addListener(function onDisconnect() {
+      console.log('[background] onDisconnect from ' + port.name);
+      
+      if (tagWeightDetails.tagPort === port) {
+        console.log('[background] Disconnecting tagweight port');
+        tagWeightDetails.tagPort = null;
+      }
+    });
     
-    switch (message.event) {
-      case 'devtools-tab-id':
-        console.log('[background] Devtools is on tab ' + message.tabId);
-        record.tabId = message.tabId;
-        tabIdToDevtools[message.tabId] = record;
-        
-        chrome.debugger.attach({tabId : record.tabId}, '1.0', function attach() {
-          record.debugging = true;
-          chrome.debugger.sendCommand( {tabId : record.tabId}, 'Network.enable', {}, function sendCommand() {
-            console.log('[background] Requested debug stream for tab ' + message.tabId);
+    port.onMessage.addListener(function onMessage(msg) {
+      console.log('[background] onMessage from ' + port.name + ' : ' + JSON.stringify(msg));
+      
+      if (msg.event === 'hello') {
+        console.log('[background] attaching to ' + tagWeightDetails.taggedTabId);
+        chrome.debugger.attach({tabId : tagWeightDetails.taggedTabId}, '1.0', function attach() {
+          tagWeightDetails.attached = true;
+          
+        console.log('[background] getFrameTree for ' + tagWeightDetails.taggedTabId);
+          chrome.debugger.sendCommand( {tabId : tagWeightDetails.taggedTabId}, 'Page.getFrameTree', {}, function PageGetFrameTree(frameTree) {
+            console.log('[background] Top frame id is ' + JSON.stringify(frameTree.frameTree.frame.id));
+            
+            tagWeightDetails.frameId = frameTree.frameTree.frame.id;
+            
+            chrome.debugger.sendCommand( {tabId : tagWeightDetails.taggedTabId}, 'Network.enable', {}, function NetworkEnable() {
+              console.log('[background] Requested Network events for tab ' + tagWeightDetails.taggedTabId);
+            });
           });
         });
-        break;
-      
-      case 'panel-tab-id':
-        record = tabIdToDevtools[message.tabId];
-        if (!record) {
-          console.log('[background] ERROR - no record for panel with tabid ' + message.tabId);
-        } else {
-          console.log('[background] Panel is on tab ' + message.tabId);
-          record.panelPort = port;
-          
-          if (record.buffer.length) {
-            record.panelPort.postMessage(record.buffer);
-            record.buffer.length = 0;
-          }
-        }
+        
+        port.postMessage({ event: 'frame-id', frameId: tagWeightDetails.frameId });
+      }
+    });
+  } else {
+    port.disconnect();
+  }
+});
+
+chrome.windows.onRemoved.addListener(function onRemoved(windowId) {
+  console.log('[background] onRemoved for ' + windowId);
+  
+  if (windowId === tagWeightDetails.tagWindowId) {
+    stopTagWeighting();
+  }
+});
+
+window.addEventListener('message', function onMessage(event) {
+  console.log('[background] onMessage from ' + event.origin);
+  
+  if (event.origin === EXTENSION_URL) {
+    switch (event.data.event) {
+      case 'browserAction-tab-id':
+        startTagWeighting(event.data.tabId);
         break;
       
       default:
         break;
     }
-  };
-    
-  port.onMessage.addListener(listener);
-
-  port.onDisconnect.addListener(function onDisconnect() {
-    console.log('[background] onDisconnect from ' + port.name);
-    port.onMessage.removeListener(listener);
-    
-    if (port.name === 'devtools-page') {
-      if (record.debugging) {
-        chrome.debugger.detach({tabId : record.tabId});
-      }
-      
-      delete tabIdToDevtools[record.tabId];
-      
-      --devtoolsOpen;
-      if (!devtoolsOpen) {
-        console.log('[background] Last devtools closed');
-      }
-    }
-  });
+  }
 });
 
-chrome.webRequest.onBeforeRequest.addListener(function onBeforeRequest(details) {
+false && chrome.webRequest.onBeforeRequest.addListener(function onBeforeRequest(details) {
     console.log('[background] onBeforeRequest from ' + details.tabId);
     
     var record = tabIdToDevtools[details.tabId];
@@ -97,19 +140,3 @@ chrome.webRequest.onBeforeRequest.addListener(function onBeforeRequest(details) 
   {urls: ["<all_urls>"], types:["main_frame"]},
   []
 );
-
-chrome.debugger.onEvent.addListener(function onEvent(source, method, params) {
-  if (!devtoolsOpen) return;
-  
-  console.log('[background] onEvent ' + JSON.stringify(method) + ' = ' + JSON.stringify(params));
-  
-  var record = tabIdToDevtools[source.tabId];
-  if (!record) return;
-  
-  if (record.panelPort) {
-    record.panelPort.postMessage({method: method, params: params});
-  } else {
-    record.buffer.push({method: method, params: params});
-  }
-});
-
