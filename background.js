@@ -50,7 +50,11 @@ function stopTagWeighting() {
 }
 
 chrome.debugger.onEvent.addListener(function onEvent(source, method, params) {
-  console.log('[background] onEvent ' + JSON.stringify(method) + ' = ' + JSON.stringify(params));
+  if (method.startsWith('Network.')) {
+    console.log('[background] onEvent Network.xxx');
+  } else {
+    console.log('[background] onEvent ' + JSON.stringify(method) + ' = ' + JSON.stringify(params));
+  }
   
   if (source.tabId !== tagWeightDetails.taggedTabId) return;
   
@@ -114,7 +118,13 @@ window.addEventListener('message', function onMessage(event) {
   if (event.origin === EXTENSION_URL) {
     switch (event.data.event) {
       case 'browserAction-tab-id':
-        startTagWeighting(event.data.tabId);
+        if (tagWeightDetails.tagWindowId) {
+          chrome.windows.remove(tagWeightDetails.tagWindowId, function remove() {
+            startTagWeighting(event.data.tabId);
+          });
+        } else {
+          startTagWeighting(event.data.tabId);
+        }
         break;
       
       default:

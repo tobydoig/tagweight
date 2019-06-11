@@ -2,19 +2,47 @@
   <head>
     <title>TagWeight</title>
     <style>
-      #cygraph {
-        width: 100%;
-        height: 100%;
+      .loading {
+        font-style: italic;
       }
+      
+      .loaded {
+        text-decoration: none;
+      }
+      
+      .failed {
+        color: red;
+      }
+      
+      .maincontent {
+        background-color: silver;
+         width: auto;
+      }
+      
+      .rightpanel {
+        background-color: cyan;
+        width: 200px;
+      }
+      
+      .footer {
+        background-color: yellow;
+        height: 30px;
+      }
+      
     </style>
-    <script src="cytoscape.min.js"></script>
     <script src="tagweight.js"></script>
+    <script src="graphing.js"></script>
   </head>
   <body>
-  tagweight window
+    <table width="100%" height="100%" margin="0" padding="0">
+      <tr>
+        <td class="maincontent"><ul id='stuff'></ul></td>
+        <td class="rightpanel">right panel</td>
+      </tr>
+      <tr><td class="footer" colspan="2">footer</td></tr>
+    </table>
   <!--
     <div id='cygraph'></div>
     -->
-    <ul id='stuff'></ul>
   </body>
 </html>
