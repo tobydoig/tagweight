@@ -2,6 +2,11 @@
   <head>
     <title>TagWeight</title>
     <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      
       .loading {
         font-style: italic;
       }
@@ -14,19 +19,67 @@
         color: red;
       }
       
+      .caret {
+        cursor: pointer;
+      }
+      
+      ul {
+        list-style-type: none;
+      }
+      
+      
+      .singleli {
+        list-style-type: circle;
+      }
+      
+      .caret::before {
+        content: "\25B6";
+        color: black;
+        display: inline-block;
+        margin-right: 6px;
+      }
+
+      .caret-down::before {
+        -ms-transform: rotate(90deg); /* IE 9 */
+        -webkit-transform: rotate(90deg); /* Safari */'
+        transform: rotate(90deg);  
+      }
+
+      .nested {
+        display: none;
+      }
+
+      .active {
+        display: block;
+      }
+      
+      .container {
+        width:100%;
+        height:100%;
+      }
+      
       .maincontent {
         background-color: silver;
-         width: auto;
+        width:calc(100% - 300px);
+        height:100%;
+        float:left;
+        overflow-x: scroll;
       }
       
       .rightpanel {
         background-color: cyan;
-        width: 200px;
+        width: 300px;
+        position: fixed;
+        right: 0;
+        height:100%;
       }
       
       .footer {
         background-color: yellow;
         height: 30px;
+        position: fixed;
+        bottom: 0px;
+        width: 100%;
       }
       
     </style>
@@ -34,13 +87,11 @@
     <script src="graphing.js"></script>
   </head>
   <body>
-    <table width="100%" height="100%" margin="0" padding="0">
-      <tr>
-        <td class="maincontent"><ul id='stuff'></ul></td>
-        <td class="rightpanel">right panel</td>
-      </tr>
-      <tr><td class="footer" colspan="2">footer</td></tr>
-    </table>
+    <div class="container">
+      <div class="maincontent"><ul id='stuff'></ul></div>
+      <div class="rightpanel">whatever</div>
+      <div class="footer">footer</div>
+    </div>
   <!--
     <div id='cygraph'></div>
     -->

@@ -52,13 +52,21 @@ function stopTagWeighting() {
 chrome.debugger.onEvent.addListener(function onEvent(source, method, params) {
   if (method.startsWith('Network.')) {
     console.log('[background] onEvent Network.xxx');
+  } else if (method.startsWith('Page.')) {
+    console.log('[background] onEvent Page.xxx');
   } else {
     console.log('[background] onEvent ' + JSON.stringify(method) + ' = ' + JSON.stringify(params));
   }
   
   if (source.tabId !== tagWeightDetails.taggedTabId) return;
   
-  tagWeightDetails.tagPort.postMessage({event: 'network', method: method, params: params});
+  if (method.startsWith('Network.')) {
+    tagWeightDetails.tagPort.postMessage({event: 'network', method: method, params: params});
+  } else if (method.startsWith('Page.')) {
+    tagWeightDetails.tagPort.postMessage({event: 'page', method: method, params: params});
+  } else {
+    tagWeightDetails.tagPort.postMessage({event: 'unknown', method: method, params: params});
+  }
 });
 
 chrome.runtime.onConnect.addListener(function onConnect(port) {
@@ -84,7 +92,7 @@ chrome.runtime.onConnect.addListener(function onConnect(port) {
         chrome.debugger.attach({tabId : tagWeightDetails.taggedTabId}, '1.0', function attach() {
           tagWeightDetails.attached = true;
           
-        console.log('[background] getFrameTree for ' + tagWeightDetails.taggedTabId);
+          console.log('[background] getFrameTree for ' + tagWeightDetails.taggedTabId);
           chrome.debugger.sendCommand( {tabId : tagWeightDetails.taggedTabId}, 'Page.getFrameTree', {}, function PageGetFrameTree(frameTree) {
             console.log('[background] Top frame id is ' + JSON.stringify(frameTree.frameTree.frame.id));
             
@@ -92,6 +100,10 @@ chrome.runtime.onConnect.addListener(function onConnect(port) {
             
             chrome.debugger.sendCommand( {tabId : tagWeightDetails.taggedTabId}, 'Network.enable', {}, function NetworkEnable() {
               console.log('[background] Requested Network events for tab ' + tagWeightDetails.taggedTabId);
+            });
+            
+            chrome.debugger.sendCommand( {tabId : tagWeightDetails.taggedTabId}, 'Page.enable', {}, function NetworkEnable() {
+              console.log('[background] Requested Page events for tab ' + tagWeightDetails.taggedTabId);
             });
           });
         });
