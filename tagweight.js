@@ -5,12 +5,17 @@ console.log('tagweight.js loaded');
 window.addEventListener('load', () => {
   const extension = chrome.runtime.connect({name: "tagweight-client"});
   var topFrameId = 0;
-  var frames = {};
+  window.tagframes = {};
   
   function handlePageEvent(method, params) {
     if (method === 'Page.frameAttached') {
       console.log('[tagweight] onMessage ' + method + ' = ' + JSON.stringify(params));
-      frames[params.frameId] = params.parentFrameId;
+      window.tagframes[params.frameId] = params.parentFrameId;
+      
+      if (params.hasOwnProperty('stack')) {
+        params.parentFrameId = window.tagframes[params.frameId];
+        GRAPHING.addResource(params);
+      }
     }
   }
   
@@ -21,10 +26,10 @@ window.addEventListener('load', () => {
       case 'Network.requestWillBeSent':
         if (params.type === 'Document') {
           if (params.frameId === topFrameId) {
-            frames = {};
+            window.tagframes = {};
             GRAPHING.setRoot(params);
           } else {
-            params.parentFrameId = frames[params.frameId];
+            params.parentFrameId = window.tagframes[params.frameId];
             GRAPHING.addResource(params);
           }
         } else {

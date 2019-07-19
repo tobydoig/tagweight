@@ -3,6 +3,7 @@
 window.addEventListener('load', function() {
   const stuff = document.querySelector('#stuff');
   const rightpanel = document.querySelector('.rightpanel');
+  const footer = document.querySelector('.footer');
   
   var root;
   var requestIdToResources = {};    //  id = requestId, value = Resource
@@ -16,23 +17,43 @@ window.addEventListener('load', function() {
     let span = document.createElement('span');
     span.className = 'loading';
     span.appendChild(document.createTextNode(r.url));
+    span.addEventListener('mouseenter', onmouseenterspan, false);
     
     let li = document.createElement('li');
     li.id = r.params.requestId;
     li.className = 'singleli';
     li.appendChild(span);
-    li.addEventListener('mouseenter', onmouseenterli, false);
     
     return li;
   }
   
-  function onmouseenterli(event) {
-    var r = requestIdToResources[event.currentTarget.id];
+  function formatByteString(x) {
+    return x >= 1000000 ? (x / 1000000).toFixed(2) + 'MB' : x >= 1000 ? (x / 1000).toFixed(2) + 'KB' : x + 'B';
+  }
+  
+  function onmouseenterspan(event) {
+    var r = requestIdToResources[event.currentTarget.parentNode.id];
     if (r) {
       rightpanel.innerHTML = 'status: ' + r.status + '<br/>' +
+        'url: ' + r.url + '<br/>' +
         'data: ' + r.dataLength + '<br/>' +
         'encoded: ' + r.encodedDataLength +
-        JSON.stringify(r.params, null, ' ');
+        '<pre>' + JSON.stringify(r.params, null, ' ') + '</pre>';
+    
+      var totalData = r.dataLength;
+      var totalEncoded = r.encodedDataLength > 0 ? r.encodedDataLength : 0;
+      
+      forAllChildren(r, (c) => {
+        totalData += c.dataLength;
+        if (c.encodedDataLength > 0) {
+          totalEncoded += c.encodedDataLength;
+        }
+      });
+      
+      footer.innerHTML = 'Total data: ' + formatByteString(totalData) + ', Total encoded: ' + formatByteString(totalEncoded);
+    } else {
+      rightpanel.innerHTML = '';
+      footer.innerHTML = '';
     }
   }
   
@@ -73,45 +94,69 @@ window.addEventListener('load', function() {
     }
   }
   
-  function getInitiator(params) {
-    switch (params.initiator.type) {
-      case 'parser':
-        return params.initiator.url;
-        break;
-      
-      case 'script':
-        let p = params.initiator.stack;
-        while (p.parent) {
-          p = p.parent;
-        }
-        return p.callFrames[0].url;
-        break;
-      
-      default:
-        return params.documentURL;
-        break;
+  function findCallUrl(stack) {
+    while (stack) {
+      let f = stack.callFrames.find((f) => f.url);
+      if (f) return f.url;
+      stack = stack.parent;
     }
-    
     return null;
   }
   
+  function getInitiator(params) {
+    if (params.hasOwnProperty('initiator')) {
+      switch (params.initiator.type) {
+        case 'parser':
+          return params.initiator.url;
+          break;
+        
+        case 'script':
+          return findCallUrl(params.initiator.stack) || '';
+          break;
+        
+        default:
+          break;
+      }
+    }
+    
+    if (params.hasOwnProperty('stack')) {
+      return findCallUrl(params.stack) || '';
+    }
+    
+    return params.documentURL;
+  }
+  
   function Resource(params) {
-    this.url = params.request.url || params.documentURL;
+    if (params.description === 'load') {
+      console.log('iframe loaded from script');
+    }
+    
+    this.url = params.request ? params.request.url : params.documentURL || 'about:blank';
     this.initiator = getInitiator(params);
     this.encodedDataLength = params.encodedDataLength || 0;
     this.dataLength = 0;
     this.status = 'loading';
     this.params = params;
+    this.children = [];
     
-    if (params.type === 'Document') {
-      if (params.parentFrameId) {
-        this.parent = syntheticIdToResources[makeSyntheticId(params.parentFrameId, this.initiator)];
-      } else {
-        this.parent = null;
-      }
+    if (params.parentFrameId) {
+      this.parent = syntheticIdToResources[makeSyntheticId(params.parentFrameId, this.initiator)];
     } else {
       this.parent = syntheticIdToResources[makeSyntheticId(params.frameId, this.initiator)] || null;
     }
+    
+    if (this.parent) {
+      this.parent.children.push(this);
+    } else {
+      console.log('orphan');
+    }
+  }
+  
+  function forAllChildren(r, callback) {
+    r.children.forEach((c) => {
+      callback(c);
+      forAllChildren(c, callback);
+    });
   }
   
   function makeSyntheticId(frameId, url) {
@@ -160,6 +205,7 @@ window.addEventListener('load', function() {
     gotResponse : (params) => gotResponse(requestIdToResources[params.requestId], params),
     gotData : (params) => gotData(requestIdToResources[params.requestId], params),
     loadComplete: (params) => { let r = requestIdToResources[params.requestId]; gotData(r, params); updateStatus(r, 'loaded'); },
-    loadFailed: (params) => { let r = requestIdToResources[params.requestId]; updateStatus(r, 'failed'); }
+    loadFailed: (params) => { let r = requestIdToResources[params.requestId]; updateStatus(r, 'failed'); },
+    getResource: (rid) => { return requestIdToResources[id]; }
   };
 }, false);
