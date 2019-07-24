@@ -12,10 +12,8 @@ window.addEventListener('load', () => {
       console.log('[tagweight] onMessage ' + method + ' = ' + JSON.stringify(params));
       window.tagframes[params.frameId] = params.parentFrameId;
       
-      if (params.hasOwnProperty('stack')) {
-        params.parentFrameId = window.tagframes[params.frameId];
-        GRAPHING.addResource(params);
-      }
+      params.parentFrameId = window.tagframes[params.frameId];
+      GRAPHING.addFrame(params);
     }
   }
   
@@ -30,19 +28,19 @@ window.addEventListener('load', () => {
             GRAPHING.setRoot(params);
           } else {
             params.parentFrameId = window.tagframes[params.frameId];
-            GRAPHING.addResource(params);
+            GRAPHING.updateFrame(params);
           }
         } else {
-          GRAPHING.addResource(params);
+          GRAPHING.requestWillBeSent(params);
         }
         break;
       
       case 'Network.responseReceived':
-        GRAPHING.gotResponse(params);
+        GRAPHING.responseReceived(params);
         break;
       
       case 'Network.dataReceived':
-        GRAPHING.gotData(params);
+        GRAPHING.dataReceived(params);
         break;
         
       case 'Network.requestServedFromCache':
@@ -53,7 +51,7 @@ window.addEventListener('load', () => {
         break;
       
       case 'Network.loadingFailed':
-        GRAPHING.loadFailed(params);
+        GRAPHING.loadingFailed(params);
         break;
       
       default:

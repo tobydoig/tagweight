@@ -88,18 +88,23 @@
         width: 100%;
       }
       
+      .cygraph {
+        width: 100%;
+        height: 100%;
+      }
+      
     </style>
+    <script src="cytoscape.min.js"></script>
     <script src="tagweight.js"></script>
     <script src="graphing.js"></script>
   </head>
   <body>
     <div class="container">
-      <div class="maincontent"><ul id='stuff'></ul></div>
+      <div class="maincontent">
+        <div class='cygraph'></div>
+      </div>
       <div class="rightpanel">whatever</div>
       <div class="footer">footer</div>
     </div>
-  <!--
-    <div id='cygraph'></div>
-    -->
   </body>
 </html>

@@ -1,0 +1,17 @@
+<html>
+  <head>
+    <title>5 - Iframe loaded by inline script</title>
+  </head>
+  <body>
+    <p>5 - Iframe loaded by inline script</p>
+    <script>
+      (function() {
+        var i = document.createElement('iframe');
+        i.src = '4.1.html';
+        i.width = '300';
+        i.height = '300';
+        document.body.appendChild(i);
+      })();
+    </script>
+  </body>
+</html>

@@ -1,211 +1,195 @@
 'use strict';
 
 window.addEventListener('load', function() {
-  const stuff = document.querySelector('#stuff');
-  const rightpanel = document.querySelector('.rightpanel');
-  const footer = document.querySelector('.footer');
+  const cy = cytoscape({
+    container: document.querySelector('.cygraph'),
+    elements: [],
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': '#666',
+          'label': 'data(id)',
+          'font-size' : '9pt',
+          'width' : '16',
+          'height' : '16'
+        }
+      },
+
+      {
+        selector: 'edge',
+        style: {
+          'width': 3,
+          'line-color': '#0c0',
+          'target-arrow-color': '#ccc',
+          'target-arrow-shape': 'triangle'
+        }
+      }
+    ]
+  });
   
-  var root;
-  var requestIdToResources = {};    //  id = requestId, value = Resource
-  var syntheticIdToResources = {};  //  id = frameID:url, value = Resource
+  window['tobycy'] = cy;
   
-  function findLiNode(r) {
-    return document.getElementById(r.params.requestId);
+  var requestIdToResources = {};
+  var frameIdToFrame = {};
+  
+  function Frame(frameId, parentFrameId, requestId) {
+    this.frameId = frameId;
+    this.parentFrameId = parentFrameId;
+    this.requestId = requestId;
+  }
+  
+  function Resource(params, type, parentFrameId) {
+    this.type = type;
+    this.parentFrameId = parentFrameId;
+    this.params = params;
+    this.loadTime = 0;
+    this.encodedDataLength = 0;
+    this.cyId = (type === 'frame' ? params.frameId : params.requestId);
+  }
+  
+  function escapeCySelector(s) {
+    return s.replace(/[.]/g, '\\$&');
+  };
+  
+  function ellipsis(s) {
+    if (s.length > 50) {
+      s = s.substring(0, 47) + '...';
+    }
+    
+    return s;
+  }
+  
+  var redrawTimer = 0;
+  
+  function redrawGraph() {
+    if (!redrawTimer) {
+      redrawTimer = window.setTimeout(() => {
+        redrawTimer = 0;
+        
+        cy.$('*').unlock();
+
+        var layout = cy.makeLayout({
+            name: 'cose'
+          });
+        layout.run();
+        
+        cy.fit();
+      }, 100);
+    }
+    
   }
 
-  function makeLi(r) {
-    let span = document.createElement('span');
-    span.className = 'loading';
-    span.appendChild(document.createTextNode(r.url));
-    span.addEventListener('mouseenter', onmouseenterspan, false);
+  function setRoot(params) {
+    cy.$('*').remove();
     
-    let li = document.createElement('li');
-    li.id = r.params.requestId;
-    li.className = 'singleli';
-    li.appendChild(span);
+    requestIdToResources = {};
+    frameIdToFrame = {};
     
-    return li;
+    let res = new Resource(params, 'frame', 0);
+    requestIdToResources[params.requestId] = res;
+    
+    frameIdToFrame[params.frameId] = new Frame(params.frameId, 0, params.requestId);
+  
+    cy.add( { data: { id: res.cyId } } );
+    cy.$('#' + escapeCySelector(res.cyId)).style({ label: params.documentURL, color: '#c00'});
+//    cy.$('#' + escapeCySelector(res.cyId)).style({ color: '#c00'});
+  
+    console.log('[resource] Added ' + params.requestId + ' as root frame ' + params.frameId);
+  
+    redrawGraph();
   }
   
-  function formatByteString(x) {
-    return x >= 1000000 ? (x / 1000000).toFixed(2) + 'MB' : x >= 1000 ? (x / 1000).toFixed(2) + 'KB' : x + 'B';
+  function updateFrame(params) {
+    let res = new Resource(params, 'frame', frameIdToFrame[params.frameId].parentFrameId);
+    requestIdToResources[params.requestId] = res;
+    
+    console.log('[resource] Added ' + params.requestId + ' as frame ' + params.frameId + ' child of ' + res.parentFrameId);
+    
+    frameIdToFrame[params.frameId].requestId = params.requestId;
+    cy.$('#' + escapeCySelector(res.cyId)).style({label: params.documentURL});
+  }
+
+  function addFrame(params) {
+    frameIdToFrame[params.frameId] = new Frame(params.frameId, params.parentFrameId, 0);
+    
+    cy.add( { data: { id: params.frameId } } );
+    cy.add( { data: { id: params.parentFrameId + '_' + params.frameId, source: params.parentFrameId, target: params.frameId } } );
+  
+    console.log('FRAME: ' + params.parentFrameId + ' -> ' + params.frameId);
+    
+    redrawGraph();
+  }
+
+  function requestWillBeSent(params) {
+    let res = new Resource(params, params.type, params.frameId);
+    requestIdToResources[params.requestId] = res;
+    
+    console.log('[resource] Added ' + params.requestId + ' as ' + res.type);
+    
+    cy.add( { data: { id: res.cyId } } );
+    cy.$('#' + escapeCySelector(res.cyId)).style({ label: ellipsis(params.request.url) });
+    
+    cy.add( { data: { id: params.frameId + '_' + res.cyId, source: params.frameId, target: res.cyId } } );
+    
+    redrawGraph();
   }
   
-  function onmouseenterspan(event) {
-    var r = requestIdToResources[event.currentTarget.parentNode.id];
-    if (r) {
-      rightpanel.innerHTML = 'status: ' + r.status + '<br/>' +
-        'url: ' + r.url + '<br/>' +
-        'data: ' + r.dataLength + '<br/>' +
-        'encoded: ' + r.encodedDataLength +
-        '<pre>' + JSON.stringify(r.params, null, ' ') + '</pre>';
+  function loadComplete(params) {
+    let res = requestIdToResources[params.requestId];
     
-      var totalData = r.dataLength;
-      var totalEncoded = r.encodedDataLength > 0 ? r.encodedDataLength : 0;
-      
-      forAllChildren(r, (c) => {
-        totalData += c.dataLength;
-        if (c.encodedDataLength > 0) {
-          totalEncoded += c.encodedDataLength;
-        }
-      });
-      
-      footer.innerHTML = 'Total data: ' + formatByteString(totalData) + ', Total encoded: ' + formatByteString(totalEncoded);
+    if (!res) {
+      console.error('No resource with id ' + params.requestId);
     } else {
-      rightpanel.innerHTML = '';
-      footer.innerHTML = '';
-    }
-  }
-  
-  function ensureAndGetUl(li) {
-    var ul;
-    if (li.childNodes.length === 1) {
-      li.classList.remove('singleli');
-      li.firstChild.classList.add('caret', 'caret-down');
-      li.firstChild.addEventListener("click", function() {
-        this.parentElement.querySelector(".nested").classList.toggle("active");
-        this.classList.toggle("caret-down");
-      });
+      res.encodedDataLength += params.encodedDataLength || 0;
       
-      ul = document.createElement('ul');
-      ul.classList.add('nested', 'active');
-      li.appendChild(ul);
-    } else {
-      ul = li.childNodes[1];
-    }
-    return ul;
-  }
-  
-  function appendToLi(r, li) {
-    let newLi = makeLi(r);
-    let ul = ensureAndGetUl(li);
-    
-    ul.appendChild(newLi);
-    
-    return newLi;
-  }
-  
-  function addToStuff(r) {
-    if (r.parent) {
-      let parentLi = findLiNode(r.parent || root);
-      appendToLi(r, parentLi);
-    } else {
-      stuff.appendChild(makeLi(r));
-    }
-  }
-  
-  function findCallUrl(stack) {
-    while (stack) {
-      let f = stack.callFrames.find((f) => f.url);
-      if (f) return f.url;
-      stack = stack.parent;
-    }
-    return null;
-  }
-  
-  function getInitiator(params) {
-    if (params.hasOwnProperty('initiator')) {
-      switch (params.initiator.type) {
-        case 'parser':
-          return params.initiator.url;
-          break;
+      if (res.parentFrameId !== 0) {
+        //  size node circle according to number of digits in payload length
+        let x = Math.ceil(Math.log10(res.encodedDataLength));
+        x = Math.max(1, x - 2);
+        x = Math.min(10, x);
+        x *= 16;
         
-        case 'script':
-          return findCallUrl(params.initiator.stack) || '';
-          break;
+        let node = cy.$('#' + escapeCySelector(res.cyId));
+        node.style( { width: x, height: x } );
+
+        let edge = cy.$('#' + escapeCySelector(res.parentFrameId + '_' + res.cyId));
+        edge.style( { 'line-color' : '#000' } );
         
-        default:
-          break;
       }
     }
-    
-    if (params.hasOwnProperty('stack')) {
-      return findCallUrl(params.stack) || '';
-    }
-    
-    return params.documentURL;
   }
   
-  function Resource(params) {
-    if (params.description === 'load') {
-      console.log('iframe loaded from script');
-    }
+  function loadingFailed(params) {
+    let res = requestIdToResources[params.requestId];
     
-    this.url = params.request ? params.request.url : params.documentURL || 'about:blank';
-    this.initiator = getInitiator(params);
-    this.encodedDataLength = params.encodedDataLength || 0;
-    this.dataLength = 0;
-    this.status = 'loading';
-    this.params = params;
-    this.children = [];
-    
-    if (params.parentFrameId) {
-      this.parent = syntheticIdToResources[makeSyntheticId(params.parentFrameId, this.initiator)];
+    if (!res) {
+      console.error('No resource with id ' + params.requestId);
     } else {
-      this.parent = syntheticIdToResources[makeSyntheticId(params.frameId, this.initiator)] || null;
-    }
-    
-    if (this.parent) {
-      this.parent.children.push(this);
-    } else {
-      console.log('orphan');
-    }
+      if (res.parentFrameId !== 0) {
+        let node = cy.$('#' + escapeCySelector(res.cyId));
+        node.style( { 'background-color': '#600' } );
+        
+        let edge = cy.$('#' + escapeCySelector(res.parentFrameId + '_' + res.cyId));
+        edge.style( { 'line-color' : '#000' } );
+      }
+    }    
   }
   
-  function forAllChildren(r, callback) {
-    r.children.forEach((c) => {
-      callback(c);
-      forAllChildren(c, callback);
-    });
-  }
-  
-  function makeSyntheticId(frameId, url) {
-    return frameId + ':' + url;
-  }
-  
-  function addResource(r) {
-    requestIdToResources[r.params.requestId] = r;
-    syntheticIdToResources[makeSyntheticId(r.params.frameId, r.url)] = r;
-  }
-  
-  function gotResponse(r, params) {
-    r.encodedDataLength += params.response.encodedDataLength || 0;
-  }
-  
-  function gotData(r, params) {
-    r.dataLength += params.dataLength || 0;
-  }
-  
-  function updateStatus(r, status) {
-    let li = findLiNode(r);
-    
-    r.status = status; 
-    
-    if (r.status === 'loaded') {
-      li.firstChild.classList.replace('loading', 'loaded');
-    } else if (r.status === 'failed') {
-      li.firstChild.classList.replace('loading', 'failed');
-    }
-  }
-  
-  function setRoot(params) {
-    stuff.innerHTML = '';
-    requestIdToResources = {};
-    syntheticIdToResources = {};
-    
-    root = new Resource(params);
-    
-    addResource(root);
-    stuff.appendChild(makeLi(root));
+  function responseReceived(params) {
+    params.encodedDataLength = params.encodedDataLength || params.response.encodedDataLength || params.response.headers['content-length'];  
+    loadComplete(params);
   }
 
   window.GRAPHING = {
     setRoot : setRoot,
-    addResource : (params) => { let r = new Resource(params); addResource(r); addToStuff(r); },
-    gotResponse : (params) => gotResponse(requestIdToResources[params.requestId], params),
-    gotData : (params) => gotData(requestIdToResources[params.requestId], params),
-    loadComplete: (params) => { let r = requestIdToResources[params.requestId]; gotData(r, params); updateStatus(r, 'loaded'); },
-    loadFailed: (params) => { let r = requestIdToResources[params.requestId]; updateStatus(r, 'failed'); },
+    addFrame : addFrame,
+    updateFrame : updateFrame,
+    requestWillBeSent : requestWillBeSent,
+    responseReceived : (params) => {},
+    dataReceived : (params) => {},
+    loadComplete: loadComplete,
+    loadingFailed: loadingFailed,
     getResource: (rid) => { return requestIdToResources[id]; }
   };
 }, false);
