@@ -30,8 +30,18 @@ window.addEventListener('load', function() {
   
   window['tobycy'] = cy;
   
+  const rightpanel = document.querySelector('.rightpanel');
   var requestIdToResources = {};
   var frameIdToFrame = {};
+  var maxEncodedDataLength = 0;
+  var maxDataLength = 0;
+  
+  cy.on('tap', 'node', (evt) => {
+    let node = evt.target;
+    let res = requestIdToResources[node.data().id] || requestIdToResources[frameIdToFrame[node.data().id].requestId];
+    
+    rightpanel.innerHTML = '<pre>' + JSON.stringify(res, null, '  ') + '</pre>';
+  });
   
   function Frame(frameId, parentFrameId, requestId) {
     this.frameId = frameId;
@@ -45,6 +55,7 @@ window.addEventListener('load', function() {
     this.params = params;
     this.loadTime = 0;
     this.encodedDataLength = 0;
+    this.dataLength = 0;
     this.cyId = (type === 'frame' ? params.frameId : params.requestId);
   }
   
@@ -69,12 +80,15 @@ window.addEventListener('load', function() {
         
         cy.$('*').unlock();
 
-        var layout = cy.makeLayout({
-            name: 'cose'
-          });
+        const layout = cy.makeLayout({
+          name: 'cose',
+          animate: false,
+          nodeRepulsion: function( node ){ return 81920; },
+          idealEdgeLength: function( edge ){ return 128; }
+        });
         layout.run();
         
-        cy.fit();
+        //cy.fit();
       }, 100);
     }
     
@@ -85,6 +99,8 @@ window.addEventListener('load', function() {
     
     requestIdToResources = {};
     frameIdToFrame = {};
+    maxEncodedDataLength = 0;
+    maxDataLength = 0;
     
     let res = new Resource(params, 'frame', 0);
     requestIdToResources[params.requestId] = res;
@@ -92,8 +108,7 @@ window.addEventListener('load', function() {
     frameIdToFrame[params.frameId] = new Frame(params.frameId, 0, params.requestId);
   
     cy.add( { data: { id: res.cyId } } );
-    cy.$('#' + escapeCySelector(res.cyId)).style({ label: params.documentURL, color: '#c00'});
-//    cy.$('#' + escapeCySelector(res.cyId)).style({ color: '#c00'});
+    cy.$('#' + escapeCySelector(res.cyId)).style({ label: ellipsis(params.documentURL), color: '#c00'});
   
     console.log('[resource] Added ' + params.requestId + ' as root frame ' + params.frameId);
   
@@ -107,7 +122,7 @@ window.addEventListener('load', function() {
     console.log('[resource] Added ' + params.requestId + ' as frame ' + params.frameId + ' child of ' + res.parentFrameId);
     
     frameIdToFrame[params.frameId].requestId = params.requestId;
-    cy.$('#' + escapeCySelector(res.cyId)).style({label: params.documentURL});
+    cy.$('#' + escapeCySelector(res.cyId)).style({label: ellipsis(params.documentURL)});
   }
 
   function addFrame(params) {
@@ -121,27 +136,56 @@ window.addEventListener('load', function() {
     redrawGraph();
   }
 
+  function dynaSize(ele) {
+    let res = requestIdToResources[ele.data().id];
+    
+    var pc;
+    if (res.dataLength) {
+      pc = res.dataLength / maxDataLength;
+    } else if (res.encodedDataLength) {
+      pc = res.encodedDataLength / maxEncodedDataLength;
+    } else {
+      pc = 0
+    }
+    let sz = Math.max(pc || 0, 0.1);
+    return 100 * sz;
+  }
+
   function requestWillBeSent(params) {
-    let res = new Resource(params, params.type, params.frameId);
-    requestIdToResources[params.requestId] = res;
-    
-    console.log('[resource] Added ' + params.requestId + ' as ' + res.type);
-    
-    cy.add( { data: { id: res.cyId } } );
-    cy.$('#' + escapeCySelector(res.cyId)).style({ label: ellipsis(params.request.url) });
-    
-    cy.add( { data: { id: params.frameId + '_' + res.cyId, source: params.frameId, target: res.cyId } } );
-    
-    redrawGraph();
+    if (requestIdToResources[params.requestId]) {
+      console.error('[requestWillBeSent] resource ' + params.requestId + ' already exists');
+    } else {
+      let res = new Resource(params, params.type, params.frameId);
+      requestIdToResources[params.requestId] = res;
+      
+      console.log('[resource] Added ' + params.requestId + ' as ' + res.type);
+      
+      cy.add( { data: { id: res.cyId } } );
+      cy.$('#' + escapeCySelector(res.cyId)).style({ label: ellipsis(params.request.url), width: dynaSize, height: dynaSize });
+      
+      cy.add( { data: { id: params.frameId + '_' + res.cyId, source: params.frameId, target: res.cyId } } );
+      
+      redrawGraph();
+    }
   }
   
-  function loadComplete(params) {
+  function loadingFinished(params) {
     let res = requestIdToResources[params.requestId];
     
     if (!res) {
       console.error('No resource with id ' + params.requestId);
     } else {
-      res.encodedDataLength += params.encodedDataLength || 0;
+      res.encodedDataLength = params.encodedDataLength || res.encodedDataLength;
+      
+      if (res.encodedDataLength > maxEncodedDataLength) {
+        maxEncodedDataLength = res.encodedDataLength;
+        console.log('maxEncodedDataLength now ' + maxEncodedDataLength);
+      }
+      
+      if (res.dataLength > maxDataLength) {
+        maxDataLength = res.dataLength;
+        console.log('maxDataLength now ' + maxDataLength);
+      }
       
       if (res.parentFrameId !== 0) {
         //  size node circle according to number of digits in payload length
@@ -151,7 +195,7 @@ window.addEventListener('load', function() {
         x *= 16;
         
         let node = cy.$('#' + escapeCySelector(res.cyId));
-        node.style( { width: x, height: x } );
+        //node.style( { width: x, height: x } );
 
         let edge = cy.$('#' + escapeCySelector(res.parentFrameId + '_' + res.cyId));
         edge.style( { 'line-color' : '#000' } );
@@ -176,9 +220,21 @@ window.addEventListener('load', function() {
     }    
   }
   
+  function dataReceived(params) {
+    let res = requestIdToResources[params.requestId];
+    
+    if (!res) {
+      console.error('No resource with id ' + params.requestId);
+    } else {
+      res.encodedDataLength += (params.encodedDataLength || 0);
+      res.dataLength += (params.dataLength || 0);
+    }
+  }
+  
   function responseReceived(params) {
-    params.encodedDataLength = params.encodedDataLength || params.response.encodedDataLength || params.response.headers['content-length'];  
-    loadComplete(params);
+    params.encodedDataLength = params.encodedDataLength || params.response.encodedDataLength;
+    params.dataLength = params.dataLength || params.response.headers["content-length"];
+    loadingFinished(params);
   }
 
   window.GRAPHING = {
@@ -186,9 +242,9 @@ window.addEventListener('load', function() {
     addFrame : addFrame,
     updateFrame : updateFrame,
     requestWillBeSent : requestWillBeSent,
-    responseReceived : (params) => {},
-    dataReceived : (params) => {},
-    loadComplete: loadComplete,
+    responseReceived : responseReceived,
+    dataReceived : dataReceived,
+    loadingFinished: loadingFinished,
     loadingFailed: loadingFailed,
     getResource: (rid) => { return requestIdToResources[id]; }
   };

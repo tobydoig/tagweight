@@ -47,7 +47,7 @@ window.addEventListener('load', () => {
         break;
         
       case 'Network.loadingFinished':
-        GRAPHING.loadComplete(params);
+        GRAPHING.loadingFinished(params);
         break;
       
       case 'Network.loadingFailed':
