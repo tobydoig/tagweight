@@ -139,6 +139,10 @@ window.addEventListener('load', function() {
   function dynaSize(ele) {
     let res = requestIdToResources[ele.data().id];
     
+    return dynaSize(res);
+  }
+  
+  function _dynaSize(res) {
     var pc;
     if (res.dataLength) {
       pc = res.dataLength / maxDataLength;
@@ -148,7 +152,7 @@ window.addEventListener('load', function() {
       pc = 0
     }
     let sz = Math.max(pc || 0, 0.1);
-    return 100 * sz;
+    return 250 * sz;
   }
 
   function requestWillBeSent(params) {
@@ -161,7 +165,7 @@ window.addEventListener('load', function() {
       console.log('[resource] Added ' + params.requestId + ' as ' + res.type);
       
       cy.add( { data: { id: res.cyId } } );
-      cy.$('#' + escapeCySelector(res.cyId)).style({ label: ellipsis(params.request.url), width: dynaSize, height: dynaSize });
+      cy.$('#' + escapeCySelector(res.cyId)).style({ label: ellipsis(params.request.url) });
       
       cy.add( { data: { id: params.frameId + '_' + res.cyId, source: params.frameId, target: res.cyId } } );
       
@@ -194,13 +198,15 @@ window.addEventListener('load', function() {
         x = Math.min(10, x);
         x *= 16;
         
+        x = _dynaSize(res);
         let node = cy.$('#' + escapeCySelector(res.cyId));
-        //node.style( { width: x, height: x } );
+        node.style( { width: x, height: x } );
 
         let edge = cy.$('#' + escapeCySelector(res.parentFrameId + '_' + res.cyId));
         edge.style( { 'line-color' : '#000' } );
-        
       }
+      
+      console.log('duration = ' + (params.timestamp - res.params.timestamp));
     }
   }
   
