@@ -81,6 +81,24 @@ That said, this is a debug tool for engineers. It's of little value to general u
 I know. So does the UI. It was a quick hack rather than a focused effort. Chipping away here 'n there, focusing on getting things to work rather than
 look pretty. But don't sit there poking holes, that's easy. Help make it better.
 
+# Known issues and Todo
+In no particular order...
+
+- Edge length should be proportional to resource load time
+- resource xxx already exists (turns out protocol requestId's aren't unique)
+- Output window sometimes needs manual refresh after opening otherwise lots of errors
+- Slow cytograph rendering
+- Graph layout doesn't look great
+- UI is ugly
+- Nodes could be colour-coded by resource type
+- JSON output in status panel should be an expandable tree
+- Some edges remain green (still loading) even though they're not still loading
+- Janky UI redraw every time graph is modified
+
+One of the main problems is I don't know how to use Cytograph properly (I chose it because d3js was even less friendly), and
+rather than spend time on that I instead focused on the events from DevTools Protocol (which itself lacks documentation on
+what order events should appear).
+
 # License
 MIT
 
