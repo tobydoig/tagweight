@@ -12,8 +12,6 @@ var tagWeightDetails = {
   frameId : 0
 };
 
-var debuggedTabId = 0;
-
 function startTagWeighting(id) {
   console.log('[background] startTagWeighting for ' + id);
   

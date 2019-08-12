@@ -4,15 +4,16 @@ window.addEventListener('load', function() {
   const cy = cytoscape({
     container: document.querySelector('.cygraph'),
     elements: [],
+    wheelSensitivity: 0.3,
     style: [
       {
         selector: 'node',
         style: {
           'background-color': '#666',
-          'label': 'data(id)',
           'font-size' : '9pt',
           'width' : '16',
-          'height' : '16'
+          'height' : '16',
+          'label': 'data(id)'
         }
       },
 
@@ -28,15 +29,13 @@ window.addEventListener('load', function() {
     ]
   });
   
-  window['tobycy'] = cy;
-  
   const rightpanel = document.querySelector('.rightpanel');
   var requestIdToResources = {};
   var frameIdToFrame = {};
   var maxEncodedDataLength = 0;
   var maxDataLength = 0;
-  
-  cy.on('tap', 'node', (evt) => {
+
+  cy.on('mouseover', 'node', (evt) => {
     let node = evt.target;
     let res = requestIdToResources[node.data().id] || requestIdToResources[frameIdToFrame[node.data().id].requestId];
     
@@ -124,18 +123,13 @@ window.addEventListener('load', function() {
     if (!redrawTimer) {
       redrawTimer = window.setTimeout(() => {
         redrawTimer = 0;
-        
-        //cy.$('*').unlock();
 
         const layout = cy.makeLayout({
           name: 'cose',
           animate: false,
-          nodeRepulsion: function( node ){ return 8192000; },
-          fit: true
+          nodeRepulsion: function( node ){ return 8192000; }
         });
         layout.run();
-        
-        //cy.fit();
       }, 100);
     }
     
@@ -265,7 +259,7 @@ window.addEventListener('load', function() {
         let pid = res.initiatorResource ? res.initiatorResource.cyId : res.parentFrameId;
 
         let edge = cy.$('#' + escapeCySelector(pid + '_' + res.cyId));
-        edge.style( { 'line-color' : '#000', width: x * 3 } );
+        edge.style( { 'line-color' : '#000', width: x * 2 } );
       }
       
       console.log('duration = ' + (params.timestamp - res.params.timestamp));
@@ -314,6 +308,7 @@ window.addEventListener('load', function() {
     dataReceived : dataReceived,
     loadingFinished: loadingFinished,
     loadingFailed: loadingFailed,
-    getResource: (rid) => { return requestIdToResources[id]; }
+    getResource: (rid) => { return requestIdToResources[id]; },
+    tobycy : cy
   };
 }, false);
