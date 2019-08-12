@@ -4,8 +4,13 @@ loaded on a page and their dependencies. The graph is live, so as you interact m
 
   ![tagweight screenshot](/docs/screenshot.png)
 
-The primary purpose of the tool is to see what advertising is being loaded on a page and to reduce page weight, although
-it can be used for general investigations and debugging.
+The primary purpose of the tool is to see what advertising and trackers are being loaded on a page and to use that
+info to help us reduce page weight (and possibly fraud).
+
+Consider this article page from forbes.com. It's not just the ads and trackers being loaded, it's that each of them
+can then load more stuff (which can include more hidden ads and trackers...which can load more again).
+
+  ![With / without adblocker](/docs/beforeafter.png)
 
 Inspiration came from another debug tool/plugin I saw around 2014, I think from Ghostery, that did
 a similar thing (but better). Couldn't find the plugin so thought I'd give it a go.
@@ -15,7 +20,7 @@ At this stage it's not packaged as a separate plugin, but installing it is trivi
 
 1. First grab the code
 
-    git clone git@github.com:tobydoig/tagweight.git
+    `git clone git@github.com:tobydoig/tagweight.git`
 
 2. Within Chrome, open the extensions window in the browser
 
