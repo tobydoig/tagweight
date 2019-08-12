@@ -23,7 +23,7 @@ Plugin is added to the browser as an unpacked plugin (trivial to add).
     `git clone git@github.com:tobydoig/tagweight.git`
 
 2. Within Chrome click the customize button (3 dots on address bar) then More tools -> Extensions
-3. Click the "Load unpacked" button. You'll now see a warning message appear in your Chrome tabs. This is telling you that the plugin can (or could) see any all data being transferred. Please see the "Security" section below for security implications.
+3. Click the "Load unpacked" button. You'll now see a warning message appear in your Chrome tabs. Do not be alarmed, this is expected. This is telling you that the plugin can (or could) access data in any of your tabs/windows. Please see the "Security" section below for security implications.
 
   ![Calculate weight menu](/docs/debugging.png)
 
