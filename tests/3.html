@@ -1,0 +1,18 @@
+<html>
+  <head>
+    <title>3 - Basic page uses script to load image</title>
+  </head>
+  <body>
+    <p>3 - Basic page with one image loaded by inline script.</p>
+    <script>
+      document.write('<img src="images/shipitnow.png">');
+    </script>
+    <script>
+      (function() {
+        var i = new Image();
+        i.src = 'images/shipitnow.png';
+        document.body.appendChild(i);
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+<html>
+  <head>
+    <title>6 - Nested iframes, scripts and images</title>
+    <script src="6.js"></script>
+  </head>
+  <body>
+    <p>6 - Nested iframes, scripts and images</p>
+    <img src="images/shipitnow.png">
+    <script>
+      (function() {
+        var i = document.createElement('iframe');
+        i.src = '6.1.html';
+        i.width = '300';
+        i.height = '300';
+        document.body.appendChild(i);
+      })();
+    </script>
+  </body>
+</html>
