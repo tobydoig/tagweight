@@ -29,10 +29,10 @@ Plugin is added to the browser as an unpacked plugin (trivial to add).
 
 4. Select the tagweight folder you cloned above
 5. Choose a tab to debug and then click the scales icon and click "Calculate Weight".
-6. A new unattractively-styled window (the "output" window) will open. This is where the graph will be shown.
 
   ![Calculate weight menu](/docs/calcweight.png)
 
+6. A new unattractively-styled window (the "output" window) will open. This is where the graph will be shown.
 7. Refresh the tab you want to graph.
 
 # The Display
