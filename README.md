@@ -15,7 +15,7 @@ At this stage it's not packaged as a separate plugin, but installing it is trivi
 
 1. First grab the code
 
-    git clone git@github.com:tobydoig/tagweight.git
+    `git clone git@github.com:tobydoig/tagweight.git`
 
 2. Within Chrome, open the extensions window in the browser
 
