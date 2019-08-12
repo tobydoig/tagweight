@@ -16,16 +16,13 @@ Inspiration came from another debug tool/plugin I saw around 2014, I think from 
 a similar thing (but better). Couldn't find the plugin so thought I'd give it a go.
 
 # Usage
-At this stage it's not packaged as a separate plugin, but installing it is trivial.
+Plugin is added to the browser as an unpacked plugin (trivial to add).
 
 1. First grab the code
 
     `git clone git@github.com:tobydoig/tagweight.git`
 
-2. Within Chrome, open the extensions window in the browser
-
-  ![Extensions menu](/docs/extensions.png)
-
+2. Within Chrome click the customize button (3 dots on address bar) then More tools -> Extensions
 3. Click the "Load unpacked" button. You'll now see a warning message appear in your Chrome tabs. This is telling you that the plugin can (or could) see any all data being transferred. Please see the "Security" section below for security implications.
 
   ![Calculate weight menu](/docs/debugging.png)
