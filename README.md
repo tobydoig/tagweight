@@ -77,11 +77,7 @@ doesn't even load any remote code, it's all contained in the folder on your mach
 
 That said, this is a debug tool for engineers. It's of little value to general users.
 
-# Code sucks
-I know. So does the UI. It was a quick hack rather than a focused effort. Chipping away here 'n there, focusing on getting things to work rather than
-look pretty. But don't sit there poking holes, that's easy. Help make it better.
-
-# Known issues and Todo
+# Known Issues
 In no particular order...
 
 - Edge length should be proportional to resource load time
@@ -94,8 +90,9 @@ In no particular order...
 - JSON output in status panel should be an expandable tree
 - Some edges remain green (still loading) even though they're not still loading
 - Janky UI redraw every time graph is modified
+- Code is.hacky (by all means help)
 
-One of the main problems is I don't know how to use Cytograph properly (I chose it because d3js was even less friendly), and
+One of the main problems is I don't know how to use the Cytoscape graph library properly (I chose it because d3js was even less friendly), and
 rather than spend time on that I instead focused on the events from DevTools Protocol (which itself lacks documentation on
 what order events should appear).
 
